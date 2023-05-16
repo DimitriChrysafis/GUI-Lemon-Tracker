@@ -1,18 +1,129 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Outline Orange Pixels in Video</title>
-    <link rel="stylesheet" type="text/css" href="style.css">
+    <title>Bouncing Balls</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+    </style>
 </head>
 <body>
-    <h1>Outline Orange Pixels in Video</h1>
-    <p>Select a video:</p>
-    <input type="file" id="videoInput">
-    <br><br>
-    <button onclick="outlineOrangePixels()">Outline Orange Pixels</button>
-    <br><br>
-    <canvas id="canvas"></canvas>
+<div>
+    <label for="speed-slider">Speed:</label>
+    <input type="range" id="speed-slider" min="0" max="1" step="0.1" value="0.5">
+</div>
+<div>
+    <label for="count-slider">Count:</label>
+    <input type="range" id="count-slider" min="1" max="100" step="1" value="50">
+</div>
+<canvas id="canvas"></canvas>
+<script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
 
-    <script src="script.js"></script>
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let speed = 0.5;
+    let ballCount = 50;
+    const balls = [];
+
+    // Ball class
+    class Ball {
+        constructor(x, y, dx, dy, radius, color) {
+            this.x = x;
+            this.y = y;
+            this.dx = dx;
+            this.dy = dy;
+            this.radius = radius;
+            this.color = color;
+        }
+
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        update() {
+            if (this.x + this.radius > canvas.width || this.x - this.radius < 0) {
+                this.dx = -this.dx;
+            }
+
+            if (this.y + this.radius > canvas.height || this.y - this.radius < 0) {
+                this.dy = -this.dy;
+            }
+
+            this.x += this.dx * speed;
+            this.y += this.dy * speed;
+
+            this.draw();
+        }
+
+        collide(other) {
+            const dx = this.x - other.x;
+            const dy = this.y - other.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < this.radius + other.radius) {
+                // Collided, increase speed of both balls
+                this.dx *= 1.1;
+                this.dy *= 1.1;
+                other.dx *= 1.1;
+                other.dy *= 1.1;
+            }
+        }
+    }
+
+    // Create balls
+    function createBalls() {
+        balls.length = 0;
+
+        for (let i = 0; i < ballCount; i++) {
+            const radius = Math.random() * 20 + 10;
+            const x = Math.random() * (canvas.width - radius * 2) + radius;
+            const y = Math.random() * (canvas.height - radius * 2) + radius;
+            const dx = (Math.random() - 0.5) * 8;
+            const dy = (Math.random() - 0.5) * 8;
+            const color = `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`;
+
+            balls.push(new Ball(x, y, dx, dy, radius, color));
+        }
+    }
+
+    createBalls();
+
+    // Animation loop
+    function animate() {
+        requestAnimationFrame(animate);
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Update balls
+        for (let i = 0; i < balls.length; i++) {
+            for (let j = i + 1; j < balls.length; j++) {
+                balls[i].collide(balls[j]);
+            }
+
+            balls[i].update();
+        }
+    }
+
+    animate();
+
+    // Event listeners for sliders
+    document.getElementById("speed-slider").addEventListener("input", function() {
+        speed = this.value;
+    });
+
+    document.getElementById("count-slider").addEventListener("input", function() {
+        ballCount = this.value;
+        createBalls();
+    });
+</script>
 </body>
 </html>
+
