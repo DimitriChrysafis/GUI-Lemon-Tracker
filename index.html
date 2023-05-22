@@ -1,116 +1,117 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-    }
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
 
-    h1 {
-      margin-top: 50px;
-    }
+        h1 {
+            margin-top: 50px;
+        }
 
-    p {
-      font-size: 20px;
-    }
+        p {
+            font-size: 20px;
+        }
 
-    #videoContainer {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
+        #videoContainer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
 
-    #processedVideo {
-      border: 2px solid #ccc;
-      border-radius: 5px;
-      margin-top: 20px;
-    }
-  </style>
+        #processedVideo {
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+    </style>
 </head>
 <body>
-  <h1>Outline Orange Pixels in Webcam</h1>
-  <div id="videoContainer">
+<h1>Outline Yellow Pixels in Webcam</h1>
+<div id="videoContainer">
     <video id="video" autoplay></video>
-  </div>
-  <canvas id="canvas"></canvas>
+</div>
+<canvas id="canvas"></canvas>
 
-  <script>
+<script>
     let videoElement;
     let canvasElement;
     let canvasContext;
 
     function startWebcam() {
-      videoElement = document.getElementById("video");
-      canvasElement = document.getElementById("canvas");
-      canvasContext = canvasElement.getContext("2d");
+        videoElement = document.getElementById("video");
+        canvasElement = document.getElementById("canvas");
+        canvasContext = canvasElement.getContext("2d");
 
-      // Access the user's webcam
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then(function(stream) {
-          videoElement.srcObject = stream;
+        // Access the user's webcam
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function(stream) {
+                videoElement.srcObject = stream;
 
-          videoElement.addEventListener("loadedmetadata", function() {
-            canvasElement.width = videoElement.videoWidth;
-            canvasElement.height = videoElement.videoHeight;
+                videoElement.addEventListener("loadedmetadata", function() {
+                    canvasElement.width = videoElement.videoWidth;
+                    canvasElement.height = videoElement.videoHeight;
 
-            // Automatically outline orange pixels
-            setInterval(outlineOrangePixels, 1000); // Adjust the interval as needed
-          });
-        })
-        .catch(function(error) {
-          console.log('Error accessing the webcam: ' + error.message);
-        });
+                    // Automatically outline yellow pixels with a shorter interval (500ms)
+                    setInterval(outlineYellowPixels, 100); // Adjust the interval as desired
+                });
+            })
+            .catch(function(error) {
+                console.log('Error accessing the webcam: ' + error.message);
+            });
     }
 
-    function outlineOrangePixels() {
-      if (!canvasContext) {
-        console.log('Webcam not started.');
-        return;
-      }
-
-      canvasContext.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
-      let imageData = canvasContext.getImageData(0, 0, canvasElement.width, canvasElement.height);
-      let data = imageData.data;
-
-      let orangePoints = [];
-
-      for (let i = 0; i < data.length; i += 4) {
-        let r = data[i];
-        let g = data[i + 1];
-        let b = data[i + 2];
-        let a = data[i + 3];
-
-        if (r > 150 && r < 300 && g > 40 && g < 200 && b < 100) {
-          let x = (i / 4) % canvasElement.width;
-          let y = Math.floor((i / 4) / canvasElement.width);
-          orangePoints.push({x: x, y: y});
+    function outlineYellowPixels() {
+        if (!canvasContext) {
+            console.log('Webcam not started.');
+            return;
         }
-      }
 
-      if (orangePoints.length === 0) {
-        console.log('No orange pixels detected.');
-        return;
-      }
+        canvasContext.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+        let imageData = canvasContext.getImageData(0, 0, canvasElement.width, canvasElement.height);
+        let data = imageData.data;
 
-      let avgX = 0, avgY = 0;
-      for (let i = 0; i < orangePoints.length; i++) {
-        avgX += orangePoints[i].x;
-        avgY += orangePoints[i].y;
-      }
-      avgX /= orangePoints.length;
-      avgY /= orangePoints.length;
+        let yellowPoints = [];
 
-      canvasContext.beginPath();
-      canvasContext.arc(avgX, avgY, 30, 0, 2 * Math.PI);
-      canvasContext.strokeStyle = "blue";
-      canvasContext.lineWidth = 5;
-      canvasContext.stroke();
-      canvasContext.closePath();
+        for (let i = 0; i < data.length; i += 4) {
+            let r = data[i];
+            let g = data[i + 1];
+            let b = data[i + 2];
+            let a = data[i + 3];
+
+            // Adjust the color range for yellow pixels
+            if (r > 150 && g > 150 && b < 100) {
+                let x = (i / 4) % canvasElement.width;
+                let y = Math.floor((i / 4) / canvasElement.width);
+                yellowPoints.push({x: x, y: y});
+            }
+        }
+
+        if (yellowPoints.length === 0) {
+            console.log('No yellow pixels detected.');
+            return;
+        }
+
+        let avgX = 0, avgY = 0;
+        for (let i = 0; i < yellowPoints.length; i++) {
+            avgX += yellowPoints[i].x;
+            avgY += yellowPoints[i].y;
+        }
+        avgX /= yellowPoints.length;
+        avgY /= yellowPoints.length;
+
+        canvasContext.beginPath();
+        canvasContext.arc(avgX, avgY, 30, 0, 2 * Math.PI);
+        canvasContext.strokeStyle = "blue";
+        canvasContext.lineWidth = 5;
+        canvasContext.stroke();
+        canvasContext.closePath();
     }
 
-    // Start the webcam automatically when the page loads
-    window.addEventListener("DOMContentLoaded", startWebcam);
-  </script>
+    // Start the webcam when the page loads
+    document.addEventListener("DOMContentLoaded", startWebcam);
+</script>
 </body>
 </html>
