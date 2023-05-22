@@ -15,13 +15,7 @@
             font-size: 20px;
         }
 
-        #videoContainer {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        #processedVideo {
+        canvas {
             border: 2px solid #ccc;
             border-radius: 5px;
             margin-top: 20px;
@@ -30,9 +24,6 @@
 </head>
 <body>
 <h1>Outline Yellow Pixels in Webcam</h1>
-<div id="videoContainer">
-    <video id="video" autoplay></video>
-</div>
 <canvas id="canvas"></canvas>
 
 <script>
@@ -41,7 +32,7 @@
     let canvasContext;
 
     function startWebcam() {
-        videoElement = document.getElementById("video");
+        videoElement = document.createElement("video");
         canvasElement = document.getElementById("canvas");
         canvasContext = canvasElement.getContext("2d");
 
@@ -49,13 +40,14 @@
         navigator.mediaDevices.getUserMedia({ video: true })
             .then(function(stream) {
                 videoElement.srcObject = stream;
+                videoElement.play();
 
                 videoElement.addEventListener("loadedmetadata", function() {
                     canvasElement.width = videoElement.videoWidth;
                     canvasElement.height = videoElement.videoHeight;
 
-                    // Automatically outline yellow pixels with a shorter interval (500ms)
-                    setInterval(outlineYellowPixels, 100); // Adjust the interval as desired
+                    // Automatically outline yellow pixels with a shorter interval (10ms)
+                    setInterval(outlineYellowPixels, 10); // Adjust the interval as desired
                 });
             })
             .catch(function(error) {
@@ -94,16 +86,27 @@
             return;
         }
 
-        let avgX = 0, avgY = 0;
-        for (let i = 0; i < yellowPoints.length; i++) {
-            avgX += yellowPoints[i].x;
-            avgY += yellowPoints[i].y;
-        }
-        avgX /= yellowPoints.length;
-        avgY /= yellowPoints.length;
+        // Calculate the minimum and maximum coordinates of the yellow points
+        let minX = Number.MAX_VALUE, minY = Number.MAX_VALUE;
+        let maxX = Number.MIN_VALUE, maxY = Number.MIN_VALUE;
+        yellowPoints.forEach(function(point) {
+            minX = Math.min(minX, point.x);
+            minY = Math.min(minY, point.y);
+            maxX = Math.max(maxX, point.x);
+            maxY = Math.max(maxY, point.y);
+        });
+
+        // Calculate the center point of the yellow points
+        let centerX = (minX + maxX) / 2;
+        let centerY = (minY + maxY) / 2;
+
+        // Calculate the radius of the circle to cover the entire yellow points
+        let radiusX = (maxX - minX) / 2;
+        let radiusY = (maxY - minY) / 2;
+        let radius = Math.max(radiusX, radiusY);
 
         canvasContext.beginPath();
-        canvasContext.arc(avgX, avgY, 30, 0, 2 * Math.PI);
+        canvasContext.arc(centerX, centerY, radius, 0, 2 * Math.PI);
         canvasContext.strokeStyle = "blue";
         canvasContext.lineWidth = 5;
         canvasContext.stroke();
