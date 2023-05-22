@@ -15,49 +15,125 @@
             font-size: 20px;
         }
 
-        canvas {
+        .video-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #webcam {
+            margin-right: 20px;
+        }
+
+        #processed-video {
             border: 2px solid #ccc;
             border-radius: 5px;
-            margin-top: 20px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            overflow: hidden;
+            transform: rotate(0);
+            transition: transform 0.5s;
+        }
+
+        .toggle-switch:hover {
+            animation: spin 1s infinite linear;
+        }
+
+        .toggle-switch.active:before {
+            animation: explode 0.5s linear;
+        }
+
+        @keyframes explode {
+            0% {
+                transform: scale(1);
+            }
+            100% {
+                transform: scale(10);
+                opacity: 0;
+            }
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
         }
     </style>
 </head>
 <body>
-<h1>Outline Yellow Pixels in Webcam</h1>
-<canvas id="canvas"></canvas>
+<h1>Webcam Tracking</h1>
+<p>Toggle Options:</p>
+<div class="toggle-switch" id="toggleTrailSwitch" onclick="toggleTrail()">Toggle Trail</div>
+<div class="toggle-switch" id="toggleCircleSwitch" onclick="toggleCircle()">Toggle Circle</div>
+<br>
+<div class="video-container">
+    <video id="webcam" autoplay playsinline></video>
+    <canvas id="processed-video"></canvas>
+</div>
 
 <script>
     let videoElement;
+    let webcamStream;
     let canvasElement;
     let canvasContext;
+    let toggleTrailSwitch;
+    let toggleCircleSwitch;
+    let trailDots = [];
+    let circleRadius = 30;
+    let isTrailEnabled = true;
+    let isCircleEnabled = true;
 
     function startWebcam() {
-        videoElement = document.createElement("video");
-        canvasElement = document.getElementById("canvas");
+        videoElement = document.getElementById("webcam");
+        canvasElement = document.getElementById("processed-video");
         canvasContext = canvasElement.getContext("2d");
+        toggleTrailSwitch = document.getElementById("toggleTrailSwitch");
+        toggleCircleSwitch = document.getElementById("toggleCircleSwitch");
 
         // Access the user's webcam
         navigator.mediaDevices.getUserMedia({ video: true })
             .then(function(stream) {
                 videoElement.srcObject = stream;
-                videoElement.play();
+                webcamStream = stream;
 
-                videoElement.addEventListener("loadedmetadata", function() {
+                videoElement.onloadedmetadata = function() {
                     canvasElement.width = videoElement.videoWidth;
                     canvasElement.height = videoElement.videoHeight;
-
-                    // Automatically outline yellow pixels with a shorter interval (10ms)
-                    setInterval(outlineYellowPixels, 10); // Adjust the interval as desired
-                });
+                    // Automatically process video frames
+                    setInterval(processVideo, 10); // Update every 10 milliseconds
+                };
             })
             .catch(function(error) {
                 console.log('Error accessing the webcam: ' + error.message);
             });
     }
 
-    function outlineYellowPixels() {
-        if (!canvasContext) {
-            console.log('Webcam not started.');
+    function toggleTrail() {
+        isTrailEnabled = !isTrailEnabled;
+        toggleTrailSwitch.classList.toggle("active");
+    }
+
+    function toggleCircle() {
+        isCircleEnabled = !isCircleEnabled;
+        toggleCircleSwitch.classList.toggle("active");
+    }
+
+    function processVideo() {
+        if (videoElement.paused || videoElement.ended) {
             return;
         }
 
@@ -87,8 +163,8 @@
         }
 
         // Calculate the minimum and maximum coordinates of the yellow points
-        let minX = Number.MAX_VALUE, minY = Number.MAX_VALUE;
-        let maxX = Number.MIN_VALUE, maxY = Number.MIN_VALUE;
+        let minX = Number.MAX_VALUE, minY = Number.MAX_VALUE, maxX = Number.MIN_VALUE, maxY = Number.MIN_VALUE;
+
         yellowPoints.forEach(function(point) {
             minX = Math.min(minX, point.x);
             minY = Math.min(minY, point.y);
@@ -96,21 +172,43 @@
             maxY = Math.max(maxY, point.y);
         });
 
-        // Calculate the center point of the yellow points
         let centerX = (minX + maxX) / 2;
         let centerY = (minY + maxY) / 2;
 
-        // Calculate the radius of the circle to cover the entire yellow points
-        let radiusX = (maxX - minX) / 2;
-        let radiusY = (maxY - minY) / 2;
-        let radius = Math.max(radiusX, radiusY);
+        // Clear the canvas
+        canvasContext.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-        canvasContext.beginPath();
-        canvasContext.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-        canvasContext.strokeStyle = "blue";
-        canvasContext.lineWidth = 5;
-        canvasContext.stroke();
-        canvasContext.closePath();
+        // Draw the webcam video
+        canvasContext.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+
+        // Draw the trail of red dots
+        if (isTrailEnabled) {
+            trailDots.push({ x: centerX, y: centerY });
+
+            // Limit the number of trail dots to avoid excessive memory usage
+            if (trailDots.length > 100) {
+                trailDots.shift();
+            }
+
+            for (let i = 0; i < trailDots.length; i++) {
+                let dot = trailDots[i];
+                canvasContext.fillStyle = "red";
+                canvasContext.beginPath();
+                canvasContext.arc(dot.x, dot.y, 2, 0, 2 * Math.PI);
+                canvasContext.fill();
+                canvasContext.closePath();
+            }
+        }
+
+        // Draw the circular tracker around the yellow pixels
+        if (isCircleEnabled) {
+            canvasContext.beginPath();
+            canvasContext.arc(centerX, centerY, circleRadius, 0, 2 * Math.PI);
+            canvasContext.strokeStyle = "blue";
+            canvasContext.lineWidth = 5;
+            canvasContext.stroke();
+            canvasContext.closePath();
+        }
     }
 
     // Start the webcam when the page loads
