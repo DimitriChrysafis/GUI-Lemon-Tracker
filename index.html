@@ -1,129 +1,116 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Bouncing Balls</title>
-    <style>
-        canvas {
-            border: 1px solid black;
-        }
-    </style>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+
+    h1 {
+      margin-top: 50px;
+    }
+
+    p {
+      font-size: 20px;
+    }
+
+    #videoContainer {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #processedVideo {
+      border: 2px solid #ccc;
+      border-radius: 5px;
+      margin-top: 20px;
+    }
+  </style>
 </head>
 <body>
-<div>
-    <label for="speed-slider">Speed:</label>
-    <input type="range" id="speed-slider" min="0" max="1" step="0.1" value="0.5">
-</div>
-<div>
-    <label for="count-slider">Count:</label>
-    <input type="range" id="count-slider" min="1" max="100" step="1" value="50">
-</div>
-<canvas id="canvas"></canvas>
-<script>
-    const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext("2d");
+  <h1>Outline Orange Pixels in Webcam</h1>
+  <div id="videoContainer">
+    <video id="video" autoplay></video>
+  </div>
+  <canvas id="canvas"></canvas>
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+  <script>
+    let videoElement;
+    let canvasElement;
+    let canvasContext;
 
-    let speed = 0.5;
-    let ballCount = 50;
-    const balls = [];
+    function startWebcam() {
+      videoElement = document.getElementById("video");
+      canvasElement = document.getElementById("canvas");
+      canvasContext = canvasElement.getContext("2d");
 
-    // Ball class
-    class Ball {
-        constructor(x, y, dx, dy, radius, color) {
-            this.x = x;
-            this.y = y;
-            this.dx = dx;
-            this.dy = dy;
-            this.radius = radius;
-            this.color = color;
-        }
+      // Access the user's webcam
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(function(stream) {
+          videoElement.srcObject = stream;
 
-        draw() {
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
-            ctx.fillStyle = this.color;
-            ctx.fill();
-            ctx.closePath();
-        }
+          videoElement.addEventListener("loadedmetadata", function() {
+            canvasElement.width = videoElement.videoWidth;
+            canvasElement.height = videoElement.videoHeight;
 
-        update() {
-            if (this.x + this.radius > canvas.width || this.x - this.radius < 0) {
-                this.dx = -this.dx;
-            }
-
-            if (this.y + this.radius > canvas.height || this.y - this.radius < 0) {
-                this.dy = -this.dy;
-            }
-
-            this.x += this.dx * speed;
-            this.y += this.dy * speed;
-
-            this.draw();
-        }
-
-        collide(other) {
-            const dx = this.x - other.x;
-            const dy = this.y - other.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-
-            if (distance < this.radius + other.radius) {
-                // Collided, increase speed of both balls
-                this.dx *= 1.1;
-                this.dy *= 1.1;
-                other.dx *= 1.1;
-                other.dy *= 1.1;
-            }
-        }
+            // Automatically outline orange pixels
+            setInterval(outlineOrangePixels, 1000); // Adjust the interval as needed
+          });
+        })
+        .catch(function(error) {
+          console.log('Error accessing the webcam: ' + error.message);
+        });
     }
 
-    // Create balls
-    function createBalls() {
-        balls.length = 0;
+    function outlineOrangePixels() {
+      if (!canvasContext) {
+        console.log('Webcam not started.');
+        return;
+      }
 
-        for (let i = 0; i < ballCount; i++) {
-            const radius = Math.random() * 20 + 10;
-            const x = Math.random() * (canvas.width - radius * 2) + radius;
-            const y = Math.random() * (canvas.height - radius * 2) + radius;
-            const dx = (Math.random() - 0.5) * 8;
-            const dy = (Math.random() - 0.5) * 8;
-            const color = `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`;
+      canvasContext.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+      let imageData = canvasContext.getImageData(0, 0, canvasElement.width, canvasElement.height);
+      let data = imageData.data;
 
-            balls.push(new Ball(x, y, dx, dy, radius, color));
+      let orangePoints = [];
+
+      for (let i = 0; i < data.length; i += 4) {
+        let r = data[i];
+        let g = data[i + 1];
+        let b = data[i + 2];
+        let a = data[i + 3];
+
+        if (r > 150 && r < 300 && g > 40 && g < 200 && b < 100) {
+          let x = (i / 4) % canvasElement.width;
+          let y = Math.floor((i / 4) / canvasElement.width);
+          orangePoints.push({x: x, y: y});
         }
+      }
+
+      if (orangePoints.length === 0) {
+        console.log('No orange pixels detected.');
+        return;
+      }
+
+      let avgX = 0, avgY = 0;
+      for (let i = 0; i < orangePoints.length; i++) {
+        avgX += orangePoints[i].x;
+        avgY += orangePoints[i].y;
+      }
+      avgX /= orangePoints.length;
+      avgY /= orangePoints.length;
+
+      canvasContext.beginPath();
+      canvasContext.arc(avgX, avgY, 30, 0, 2 * Math.PI);
+      canvasContext.strokeStyle = "blue";
+      canvasContext.lineWidth = 5;
+      canvasContext.stroke();
+      canvasContext.closePath();
     }
 
-    createBalls();
-
-    // Animation loop
-    function animate() {
-        requestAnimationFrame(animate);
-        // Clear canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Update balls
-        for (let i = 0; i < balls.length; i++) {
-            for (let j = i + 1; j < balls.length; j++) {
-                balls[i].collide(balls[j]);
-            }
-
-            balls[i].update();
-        }
-    }
-
-    animate();
-
-    // Event listeners for sliders
-    document.getElementById("speed-slider").addEventListener("input", function() {
-        speed = this.value;
-    });
-
-    document.getElementById("count-slider").addEventListener("input", function() {
-        ballCount = this.value;
-        createBalls();
-    });
-</script>
+    // Start the webcam automatically when the page loads
+    window.addEventListener("DOMContentLoaded", startWebcam);
+  </script>
 </body>
 </html>
-
