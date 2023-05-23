@@ -26,6 +26,8 @@
 
         #webcam {
             margin-right: 20px;
+            width: 320px;
+            height: 240px;
         }
 
         #processed-video {
@@ -229,7 +231,6 @@
                 gradient.addColorStop(4 / 6, "blue");
                 gradient.addColorStop(5 / 6, "indigo");
                 gradient.addColorStop(1, "violet");
-
                 canvasContext.strokeStyle = gradient;
                 canvasContext.lineWidth = 5;
                 canvasContext.beginPath();
@@ -238,23 +239,26 @@
                 canvasContext.closePath();
             }
 
-            // Calculate the speed of the center of the object
+            // Calculate and display speed
             let currentTime = Date.now();
-            let deltaTime = currentTime - lastSpeedUpdate;
-            if (deltaTime >= speedUpdateInterval) {
-                speed = Math.sqrt(Math.pow(centerX - previousCenterX, 2) + Math.pow(centerY - previousCenterY, 2)) / (deltaTime / 1000);
+            let timeDiff = currentTime - lastSpeedUpdate;
+            if (timeDiff >= speedUpdateInterval) {
+                let displacementX = Math.abs(centerX - previousCenterX);
+                let displacementY = Math.abs(centerY - previousCenterY);
+                let distance = Math.sqrt(Math.pow(displacementX, 2) + Math.pow(displacementY, 2));
+                speed = distance / timeDiff * 1000; // pixels per second
                 lastSpeedUpdate = currentTime;
                 previousCenterX = centerX;
                 previousCenterY = centerY;
             }
         }
 
-        // Display the speed in the top right corner
-        document.getElementById("speed").innerText = "Speed: " + speed.toFixed(2) + " pixels/second";
+        // Update the speed display
+        document.getElementById("speed").textContent = speed.toFixed(2) + " px/s";
     }
 
-    // Start the webcam when the page loads
-    window.addEventListener("DOMContentLoaded", startWebcam);
+    // Start the webcam video stream
+    startWebcam();
 </script>
 </body>
 </html>
