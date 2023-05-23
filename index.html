@@ -5,14 +5,17 @@
         body {
             font-family: Arial, sans-serif;
             text-align: center;
+            background-color: black;
         }
 
         h1 {
             margin-top: 50px;
+            color: white;
         }
 
         p {
             font-size: 20px;
+            color: white;
         }
 
         .video-container {
@@ -46,6 +49,10 @@
             transition: transform 0.5s;
         }
 
+        .toggle-switch:hover {
+            animation: spin 1s infinite linear;
+        }
+
         .toggle-switch.active:before {
             animation: explode 0.5s linear;
         }
@@ -59,6 +66,23 @@
                 opacity: 0;
             }
         }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        #speed {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 35px;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -71,6 +95,7 @@
     <video id="webcam" autoplay playsinline></video>
     <canvas id="processed-video"></canvas>
 </div>
+<div id="speed"></div>
 
 <script>
     let videoElement;
@@ -83,6 +108,13 @@
     let circleRadius = 30;
     let isTrailEnabled = true;
     let isCircleEnabled = true;
+    let isYellowDetected = false;
+    let previousCenterX = 0;
+    let previousCenterY = 0;
+    let speed = 0;
+    let lastSpeedUpdate = Date.now();
+    const videoUpdateInterval = 1;
+    const speedUpdateInterval = 100;
 
     function startWebcam() {
         videoElement = document.getElementById("webcam");
@@ -101,7 +133,7 @@
                     canvasElement.width = videoElement.videoWidth;
                     canvasElement.height = videoElement.videoHeight;
                     // Automatically process video frames
-                    setInterval(processVideo, 10); // Update every 10 milliseconds
+                    setInterval(processVideo, videoUpdateInterval);
                 };
             })
             .catch(function(error) {
@@ -144,62 +176,85 @@
             }
         }
 
-        if (yellowPoints.length === 0) {
-            console.log('No yellow pixels detected.');
-            return;
-        }
+        isYellowDetected = yellowPoints.length > 0;
 
-        // Calculate the minimum and maximum coordinates of the yellow points
-        let minX = Number.MAX_VALUE, minY = Number.MAX_VALUE, maxX = Number.MIN_VALUE, maxY = Number.MIN_VALUE;
+        if (isYellowDetected || isTrailEnabled || isCircleEnabled) {
+            // Calculate the minimum and maximum coordinates of the yellow points
+            let minX = Number.MAX_VALUE, minY = Number.MAX_VALUE, maxX = Number.MIN_VALUE, maxY = Number.MIN_VALUE;
 
-        yellowPoints.forEach(function(point) {
-            minX = Math.min(minX, point.x);
-            minY = Math.min(minY, point.y);
-            maxX = Math.max(maxX, point.x);
-            maxY = Math.max(maxY, point.y);
-        });
+            yellowPoints.forEach(function(point) {
+                minX = Math.min(minX, point.x);
+                minY = Math.min(minY, point.y);
+                maxX = Math.max(maxX, point.x);
+                maxY = Math.max(maxY, point.y);
+            });
 
-        let centerX = (minX + maxX) / 2;
-        let centerY = (minY + maxY) / 2;
+            let centerX = (minX + maxX) / 2;
+            let centerY = (minY + maxY) / 2;
+            let circleSize = Math.max(Math.abs(centerX - minX), Math.abs(centerY - minY)) * 1.5;
 
-        // Clear the canvas
-        canvasContext.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            // Clear the canvas
+            canvasContext.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-        // Draw the webcam video
-        canvasContext.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+            // Draw the webcam video
+            canvasContext.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
 
-        // Draw the trail of red dots
-        if (isTrailEnabled) {
-            trailDots.push({ x: centerX, y: centerY });
+            // Draw the trail of black dots
+            if (isTrailEnabled) {
+                trailDots.push({ x: centerX, y: centerY });
 
-            // Limit the number of trail dots to avoid excessive memory usage
-            if (trailDots.length > 100) {
-                trailDots.shift();
+                // Limit the number of trail dots to avoid excessive memory usage
+                if (trailDots.length > 100) {
+                    trailDots.shift();
+                }
+
+                for (let i = 0; i < trailDots.length; i++) {
+                    let dot = trailDots[i];
+                    canvasContext.fillStyle = "black";
+                    canvasContext.beginPath();
+                    canvasContext.arc(dot.x, dot.y, 2, 0, 2 * Math.PI);
+                    canvasContext.fill();
+                    canvasContext.closePath();
+                }
             }
 
-            for (let i = 0; i < trailDots.length; i++) {
-                let dot = trailDots[i];
-                canvasContext.fillStyle = "red";
+            // Draw the circular tracker around the yellow pixels
+            if (isCircleEnabled) {
+                // Draw rainbow-colored block animation
+                let gradient = canvasContext.createLinearGradient(centerX - circleSize, centerY - circleSize, centerX + circleSize, centerY + circleSize);
+                gradient.addColorStop(0, "red");
+                gradient.addColorStop(1 / 6, "orange");
+                gradient.addColorStop(2 / 6, "yellow");
+                gradient.addColorStop(3 / 6, "green");
+                gradient.addColorStop(4 / 6, "blue");
+                gradient.addColorStop(5 / 6, "indigo");
+                gradient.addColorStop(1, "violet");
+
+                canvasContext.strokeStyle = gradient;
+                canvasContext.lineWidth = 5;
                 canvasContext.beginPath();
-                canvasContext.arc(dot.x, dot.y, 2, 0, 2 * Math.PI);
-                canvasContext.fill();
+                canvasContext.arc(centerX, centerY, circleSize, 0, 2 * Math.PI);
+                canvasContext.stroke();
                 canvasContext.closePath();
             }
+
+            // Calculate the speed of the center of the object
+            let currentTime = Date.now();
+            let deltaTime = currentTime - lastSpeedUpdate;
+            if (deltaTime >= speedUpdateInterval) {
+                speed = Math.sqrt(Math.pow(centerX - previousCenterX, 2) + Math.pow(centerY - previousCenterY, 2)) / (deltaTime / 1000);
+                lastSpeedUpdate = currentTime;
+                previousCenterX = centerX;
+                previousCenterY = centerY;
+            }
         }
 
-        // Draw the circular tracker around the yellow pixels
-        if (isCircleEnabled) {
-            canvasContext.beginPath();
-            canvasContext.arc(centerX, centerY, circleRadius, 0, 2 * Math.PI);
-            canvasContext.strokeStyle = "blue";
-            canvasContext.lineWidth = 5;
-            canvasContext.stroke();
-            canvasContext.closePath();
-        }
+        // Display the speed in the top right corner
+        document.getElementById("speed").innerText = "Speed: " + speed.toFixed(2) + " pixels/second";
     }
 
     // Start the webcam when the page loads
-    document.addEventListener("DOMContentLoaded", startWebcam);
+    window.addEventListener("DOMContentLoaded", startWebcam);
 </script>
 </body>
 </html>
