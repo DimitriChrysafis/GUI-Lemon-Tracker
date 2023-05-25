@@ -1,4 +1,10 @@
+
+
 <!DOCTYPE html>
+// citations https://www.geeksforgeeks.org/how-to-open-web-cam-in-javascript/
+// cite https://codepen.io/cassie-codes/pen/RJxGvK a tiny bit
+// https://bensonruan.com/how-to-access-webcam-and-take-photo-with-javascript/
+// learned a bit from https://raw.githubusercontent.com/ahmukoma/Color-Tracking-with-Javascript/master/js/jquery-3.2.1.js
 <html>
 <head>
     <style>
@@ -15,7 +21,7 @@
 
         p {
             font-size: 20px;
-            color: white;
+            color: red;
         }
 
         .video-container {
@@ -108,15 +114,16 @@
     let toggleCircleSwitch;
     let trailDots = [];
     let circleRadius = 30;
+    // was going to use but 1.5x total dist works
     let isTrailEnabled = true;
     let isCircleEnabled = true;
     let isYellowDetected = false;
-    let previousCenterX = 0;
-    let previousCenterY = 0;
+    let oldcx = 0;
+    let oldcy = 0;
     let speed = 0;
     let lastSpeedUpdate = Date.now();
     const videoUpdateInterval = 1;
-    const speedUpdateInterval = 100;
+    const rerunner = 100;
 
     function startWebcam() {
         videoElement = document.getElementById("webcam");
@@ -137,9 +144,10 @@
                     // Automatically process video frames
                     setInterval(processVideo, videoUpdateInterval);
                 };
+                // from github
             })
             .catch(function(error) {
-                console.log('Error accessing the webcam: ' + error.message);
+                console.log('e');
             });
     }
 
@@ -152,6 +160,7 @@
         isCircleEnabled = !isCircleEnabled;
         toggleCircleSwitch.classList.toggle("active");
     }
+    // taken from geeksforgeeks
 
     function processVideo() {
         if (videoElement.paused || videoElement.ended) {
@@ -170,7 +179,7 @@
             let b = data[i + 2];
             let a = data[i + 3];
 
-            // Adjust the color range for yellow pixels
+            // DONT TOUCH THIS I SPENT FORVEER FINDING THE COLOR
             if (r > 150 && g > 150 && b < 100) {
                 let x = (i / 4) % canvasElement.width;
                 let y = Math.floor((i / 4) / canvasElement.width);
@@ -181,8 +190,11 @@
         isYellowDetected = yellowPoints.length > 0;
 
         if (isYellowDetected || isTrailEnabled || isCircleEnabled) {
-            // Calculate the minimum and maximum coordinates of the yellow points
-            let minX = Number.MAX_VALUE, minY = Number.MAX_VALUE, maxX = Number.MIN_VALUE, maxY = Number.MIN_VALUE;
+            // Calculate
+            let minX = Number.MAX_VALUE
+            let minY = Number.MAX_VALUE
+            let maxX = Number.MIN_VALUE
+            let maxY = Number.MIN_VALUE;
 
             yellowPoints.forEach(function(point) {
                 minX = Math.min(minX, point.x);
@@ -191,9 +203,9 @@
                 maxY = Math.max(maxY, point.y);
             });
 
-            let centerX = (minX + maxX) / 2;
-            let centerY = (minY + maxY) / 2;
-            let circleSize = Math.max(Math.abs(centerX - minX), Math.abs(centerY - minY)) * 1.5;
+            let mx = (minX + maxX) / 2;
+            let my = (minY + maxY) / 2;
+            let circleSize = Math.max(Math.abs(mx - minX), Math.abs(my - minY)) * 1.5;
 
             // Clear the canvas
             canvasContext.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -201,11 +213,10 @@
             // Draw the webcam video
             canvasContext.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
 
-            // Draw the trail of black dots
-            if (isTrailEnabled) {
-                trailDots.push({ x: centerX, y: centerY });
+            if (isTrailEnabled==true) {
+                trailDots.push({ x: mx, y: my });
 
-                // Limit the number of trail dots to avoid excessive memory usage
+                // num of dots
                 if (trailDots.length > 100) {
                     trailDots.shift();
                 }
@@ -217,13 +228,13 @@
                     canvasContext.arc(dot.x, dot.y, 2, 0, 2 * Math.PI);
                     canvasContext.fill();
                     canvasContext.closePath();
+                    // idk why last part important but....
                 }
             }
 
-            // Draw the circular tracker around the yellow pixels
-            if (isCircleEnabled) {
-                // Draw rainbow-colored block animation
-                let gradient = canvasContext.createLinearGradient(centerX - circleSize, centerY - circleSize, centerX + circleSize, centerY + circleSize);
+            if (isCircleEnabled==true) {
+                //  used code cover the circle that layers te object
+                let gradient = canvasContext.createLinearGradient(mx - circleSize, my - circleSize, mx + circleSize, my + circleSize);
                 gradient.addColorStop(0, "red");
                 gradient.addColorStop(1 / 6, "orange");
                 gradient.addColorStop(2 / 6, "yellow");
@@ -234,30 +245,27 @@
                 canvasContext.strokeStyle = gradient;
                 canvasContext.lineWidth = 5;
                 canvasContext.beginPath();
-                canvasContext.arc(centerX, centerY, circleSize, 0, 2 * Math.PI);
+                canvasContext.arc(mx, my, circleSize, 0, 2 * Math.PI);
                 canvasContext.stroke();
                 canvasContext.closePath();
             }
 
-            // Calculate and display speed
             let currentTime = Date.now();
             let timeDiff = currentTime - lastSpeedUpdate;
-            if (timeDiff >= speedUpdateInterval) {
-                let displacementX = Math.abs(centerX - previousCenterX);
-                let displacementY = Math.abs(centerY - previousCenterY);
+            if (timeDiff >= rerunner) {
+                let displacementX = Math.abs(mx - oldcx);
+                let displacementY = Math.abs(my - oldcy);
                 let distance = Math.sqrt(Math.pow(displacementX, 2) + Math.pow(displacementY, 2));
                 speed = distance / timeDiff * 1000; // pixels per second
                 lastSpeedUpdate = currentTime;
-                previousCenterX = centerX;
-                previousCenterY = centerY;
+                oldcx = mx;
+                oldcy = my;
             }
         }
 
-        // Update the speed display
-        document.getElementById("speed").textContent = speed.toFixed(2) + " px/s";
+        document.getElementById("speed").textContent = speed.toFixed(2) + " pixels per second";
     }
 
-    // Start the webcam video stream
     startWebcam();
 </script>
 </body>
