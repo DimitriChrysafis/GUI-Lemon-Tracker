@@ -125,7 +125,7 @@
         toggleTrailSwitch = document.getElementById("toggleTrailSwitch");
         toggleCircleSwitch = document.getElementById("toggleCircleSwitch");
 
-        // Access the user's webcam
+        // get camera
         navigator.mediaDevices.getUserMedia({ video: true })
             .then(function(stream) {
                 videoElement.srcObject = stream;
