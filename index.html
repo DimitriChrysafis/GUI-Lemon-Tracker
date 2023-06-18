@@ -205,7 +205,7 @@
 
             let mx = (minX + maxX) / 2;
             let my = (minY + maxY) / 2;
-            let circleSize = Math.max(Math.abs(mx - minX), Math.abs(my - minY)) * 1.5;
+            let circleSize = Math.max(Math.abs(mx - minX), Math.abs(my - minY));
 
             // Clear the canvas
             canvasContext.clearRect(0, 0, canvasElement.width, canvasElement.height);
