@@ -2,6 +2,8 @@
 
 tracks and displays the speed of a yellow object in real-time using your webcam. It also provides options to toggle a trail of dots and a circle around the detected object.
 
+![Sample GIF](/sample.gif)
+
 ## Usage
 1. Open the HTML file in a compatible web browser.
 2. Allow webcam access.
